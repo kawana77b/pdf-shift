@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "name": "preload",
+  "version": "1.0.0",
+  "description": "",
+  "main": "preload.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "shimarisu_121",
+  "license": "MIT"
+}

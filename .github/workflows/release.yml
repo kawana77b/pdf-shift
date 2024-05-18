@@ -1,0 +1,136 @@
+name: build and release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+
+    env:
+      ARTIFACTS_DIR: artifacts
+
+    steps:
+      # For sharp library of node.js
+      - name: Run Dependency (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libopenjp2-tools
+
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: npm run init
+
+      - name: Publish App
+        run: npm run publish
+
+      - name: MakeDir artifacts
+        run: |
+          mkdir ${{ env.ARTIFACTS_DIR }}
+          ls
+
+      - name: Copy Files (Windows x64)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Get-ChildItem -Path ./release -Filter *setup.exe | Copy-Item -Destination ./${{ env.ARTIFACTS_DIR }}
+          cp LICENSE ./${{ env.ARTIFACTS_DIR }}
+          cp README.md ./${{ env.ARTIFACTS_DIR }}
+          ls ${{ env.ARTIFACTS_DIR }}
+
+      - name: Copy Files (Ubuntu x64)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          cp -r ./release/*.AppImage ./${{ env.ARTIFACTS_DIR }}
+          cp LICENSE ./${{ env.ARTIFACTS_DIR }}
+          cp README.md ./${{ env.ARTIFACTS_DIR }}
+          ls ${{ env.ARTIFACTS_DIR }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-x64
+          path: ${{ env.ARTIFACTS_DIR }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    env:
+      # Windows x64
+      WIN_X64_DOWNLOAD: windows-latest-x64
+      WIN_X64_DIR: pdf-shift_win_x64
+      WIN_X64_ARTIFACT: pdf-shift_win_x64.zip
+      # Linux x64
+      LINUX_X64_DOWNLOAD: ubuntu-latest-x64
+      LINUX_X64_DIR: pdf-shift_linux_x64
+      LINUX_X64_ARTIFACT: pdf-shift_linux_x64.tar.gz
+      # Dist
+      DIST_DIR: dist
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Check Directories
+        run: |
+          ls -R
+
+      - name: Rename directories for download
+        run: |
+          mv ${{ env.WIN_X64_DOWNLOAD }} ${{ env.WIN_X64_DIR }}
+          mv ${{ env.LINUX_X64_DOWNLOAD }} ${{ env.LINUX_X64_DIR }}
+          ls -l
+
+      - name: Compress artifacts
+        run: |
+          zip -r ${{ env.WIN_X64_ARTIFACT }} ./${{ env.WIN_X64_DIR }}/*
+          tar -czvf ${{ env.LINUX_X64_ARTIFACT }} ${{ env.LINUX_X64_DIR }}/*
+          ls
+
+      - name: MakeDir dist
+        run: |
+          mkdir ${{ env.DIST_DIR }}
+          ls
+
+      - name: Copy artifacts
+        run: |
+          cp ${{ env.WIN_X64_ARTIFACT }} ${{ env.DIST_DIR }}
+          cp ${{ env.LINUX_X64_ARTIFACT }} ${{ env.DIST_DIR }}
+
+      - name: Check dist
+        run: |
+          ls ${{ env.DIST_DIR }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ env.DIST_DIR }}/${{ env.WIN_X64_ARTIFACT }}
+            ${{ env.DIST_DIR }}/${{ env.LINUX_X64_ARTIFACT }}
+          generate_release_notes: true
+          draft: true

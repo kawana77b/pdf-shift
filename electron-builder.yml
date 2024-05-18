@@ -1,0 +1,57 @@
+# @see https://www.electron.build/configuration/configuration
+# $schema: https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json
+appId: com.shimarisu_121.pdf_shift
+asar: true
+productName: PDF Shift
+copyright: Copyright © 2024 shimarisu_121
+forceCodeSigning: false
+
+# NOTE: As of 2024.5, in a Linux environment, if sharp is not archived,
+# an installation error occurs in the published file.
+asarUnpack:
+  - node_modules/sharp/**
+
+directories:
+  # output: release/${version}
+  output: release
+  buildResources: resources
+files:
+  - dist
+  - frontend/dist
+
+win:
+  icon: resources/icon_256x256.ico
+  artifactName: ${productName}.${ext}
+  target:
+    - target: dir
+      arch:
+        - x64
+    #- target: zip
+    #  arch:
+    #    - x64
+    - target: nsis
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}_setup.${ext}
+
+# mac:
+#   icon: resources/icon_256x256.icns
+#   artifactName: ${productName}_osx_${version}.${ext}
+#   darkModeSupport: true
+#   category: public.app-category.productivity
+#   identity: null
+#   target:
+#     - dmg
+
+linux:
+  icon: resources/icon_256x256.png
+  category: Utility
+  target:
+    - target: AppImage
+      arch:
+        - x64
+
+appImage:
+  artifactName: ${name}.${ext}
